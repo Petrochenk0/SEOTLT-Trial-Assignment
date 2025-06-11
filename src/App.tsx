@@ -1,31 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
-function App() {
-  const [news, setNews] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [formValues, setFormValues] = useState({ title: '', text: '' });
+interface NewsItem {
+  id: number;
+  title: string;
+  text: string;
+}
 
-  // Загружаем данные из localStorage при монтировании
+function App() {
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [formValues, setFormValues] = useState<NewsItem>({
+    id: 0,
+    title: '',
+    text: '',
+  });
+
+  // Загружаем данные из localStorage
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('news')) || [];
-    setNews(saved);
+    const saved = localStorage.getItem('news');
+    setNews(saved ? JSON.parse(saved) : []);
   }, []);
 
-  // Сохраняем в localStorage при изменении news
+  // Сохраняем в localStorage
   useEffect(() => {
     localStorage.setItem('news', JSON.stringify(news));
   }, [news]);
 
   // Обработчики формы
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
     setFormValues({
       ...formValues,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formValues.title.trim() || !formValues.text.trim()) return;
 
@@ -33,21 +44,21 @@ function App() {
       setNews(news.map((item) => (item.id === editingId ? { ...item, ...formValues } : item)));
       setEditingId(null);
     } else {
-      const newItem = {
+      const newItem: NewsItem = {
         id: Date.now(),
         ...formValues,
       };
       setNews([newItem, ...news]);
     }
-    setFormValues({ title: '', text: '' });
+    setFormValues({ id: 0, title: '', text: '' });
   };
 
-  const handleEdit = (item) => {
+  const handleEdit = (item: NewsItem) => {
     setEditingId(item.id);
-    setFormValues({ title: item.title, text: item.text });
+    setFormValues({ ...item });
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id: number) => {
     setNews(news.filter((item) => item.id !== id));
   };
 
@@ -65,47 +76,56 @@ function App() {
   );
 }
 
-// Форма добавления/редактирования
-function NewsForm({ formValues, handleChange, handleSubmit, isEditing }) {
-  return (
-    <form onSubmit={handleSubmit} className="news-form">
-      <input
-        type="text"
-        name="title"
-        placeholder="Заголовок"
-        value={formValues.title}
-        onChange={handleChange}
-        required
-      />
-      <textarea
-        name="text"
-        placeholder="Текст новости"
-        value={formValues.text}
-        onChange={handleChange}
-        required
-      />
-      <button type="submit">{isEditing ? 'Обновить' : 'Добавить'}</button>
-    </form>
-  );
-}
+// Форма
+type NewsFormProps = {
+  formValues: NewsItem;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  handleSubmit: (e: React.FormEvent) => void;
+  isEditing: boolean;
+};
 
-// Список новостей
-function NewsList({ news, onEdit, onDelete }) {
-  return (
-    <ul className="news-list">
-      {news.length === 0 && <p>Новостей пока нет</p>}
-      {news.map((item) => (
-        <li key={item.id} className="news-item">
-          <h3>{item.title}</h3>
-          <p>{item.text}</p>
-          <div className="news-actions">
-            <button onClick={() => onEdit(item)}>✏️</button>
-            <button onClick={() => onDelete(item.id)}>🗑️</button>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
+const NewsForm = ({ formValues, handleChange, handleSubmit, isEditing }: NewsFormProps) => (
+  <form onSubmit={handleSubmit} className="news-form">
+    <input
+      type="text"
+      name="title"
+      placeholder="Заголовок"
+      value={formValues.title}
+      onChange={handleChange}
+      required
+    />
+    <textarea
+      name="text"
+      placeholder="Текст новости"
+      value={formValues.text}
+      onChange={handleChange}
+      required
+    />
+    <button type="submit">{isEditing ? 'Обновить' : 'Добавить'}</button>
+  </form>
+);
+
+// Список
+type NewsListProps = {
+  news: NewsItem[];
+  onEdit: (item: NewsItem) => void;
+  onDelete: (id: number) => void;
+};
+
+const NewsList = ({ news, onEdit, onDelete }: NewsListProps) => (
+  <ul className="news-list">
+    {news.length === 0 && <p>Новостей пока нет</p>}
+    {news.map((item) => (
+      <li key={item.id} className="news-item">
+        <h3>{item.title}</h3>
+        <p>{item.text}</p>
+        <div className="news-actions">
+          <button onClick={() => onEdit(item)}>✏️</button>
+          <button onClick={() => onDelete(item.id)}>🗑️</button>
+        </div>
+      </li>
+    ))}
+  </ul>
+);
 
 export default App;
