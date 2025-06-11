@@ -10,24 +10,26 @@ interface NewsItem {
 function App() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [formValues, setFormValues] = useState<NewsItem>({
-    id: 0,
+  const [formValues, setFormValues] = useState<Omit<NewsItem, 'id'>>({
     title: '',
     text: '',
   });
 
-  // Загружаем данные из localStorage
   useEffect(() => {
     const saved = localStorage.getItem('news');
-    setNews(saved ? JSON.parse(saved) : []);
+    if (saved) {
+      try {
+        setNews(JSON.parse(saved));
+      } catch (e) {
+        console.error('Ошибка парсинга localStorage', e);
+      }
+    }
   }, []);
 
-  // Сохраняем в localStorage
   useEffect(() => {
     localStorage.setItem('news', JSON.stringify(news));
   }, [news]);
 
-  // Обработчики формы
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormValues({
@@ -41,25 +43,33 @@ function App() {
     if (!formValues.title.trim() || !formValues.text.trim()) return;
 
     if (editingId) {
-      setNews(news.map((item) => (item.id === editingId ? { ...item, ...formValues } : item)));
+      setNews((prev) =>
+        prev.map((item) =>
+          item.id === editingId
+            ? { ...item, title: formValues.title, text: formValues.text }
+            : item,
+        ),
+      );
       setEditingId(null);
     } else {
       const newItem: NewsItem = {
         id: Date.now(),
-        ...formValues,
+        title: formValues.title,
+        text: formValues.text,
       };
-      setNews([newItem, ...news]);
+      setNews((prev) => [newItem, ...prev]);
     }
-    setFormValues({ id: 0, title: '', text: '' });
+
+    setFormValues({ title: '', text: '' });
   };
 
   const handleEdit = (item: NewsItem) => {
     setEditingId(item.id);
-    setFormValues({ ...item });
+    setFormValues({ title: item.title, text: item.text });
   };
 
   const handleDelete = (id: number) => {
-    setNews(news.filter((item) => item.id !== id));
+    setNews((prev) => prev.filter((item) => item.id !== id));
   };
 
   return (
@@ -76,9 +86,8 @@ function App() {
   );
 }
 
-// Форма
 type NewsFormProps = {
-  formValues: NewsItem;
+  formValues: { title: string; text: string };
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   handleSubmit: (e: React.FormEvent) => void;
   isEditing: boolean;
@@ -105,7 +114,6 @@ const NewsForm = ({ formValues, handleChange, handleSubmit, isEditing }: NewsFor
   </form>
 );
 
-// Список
 type NewsListProps = {
   news: NewsItem[];
   onEdit: (item: NewsItem) => void;
